@@ -1,0 +1,46 @@
+{
+  "FileVersion": 2,
+  "Id": "901e0ae9-f15e-4ec0-bad0-7ed7c2fef770",
+  "Items": [
+    {
+      "Id": "166ee94e-b5e5-49a1-b4fc-cb3df2a859ce",
+      "Command": "search",
+      "Items": [
+        {
+          "Id": "ab9bd191-7107-4574-9d78-ab0b76becce5",
+          "Command": "--search"
+        },
+        {
+          "Id": "3469268f-85c0-4322-9d78-b60cd804ccba",
+          "Command": "--input \"C:\\Users\\Ivan\\source\\repos\\course_project_da\\course_project_da\\assets\\input.txt\""
+        },
+        {
+          "Id": "fafd836d-03e6-4763-b242-502d0b140920",
+          "Command": "--graph \"C:\\Users\\Ivan\\source\\repos\\course_project_da\\course_project_da\\assets\\output.graph\""
+        }
+      ]
+    },
+    {
+      "Id": "c6f5077d-73f9-44b3-b33a-5de774f92867",
+      "Command": "preprocess",
+      "Items": [
+        {
+          "Id": "a803af90-3f44-4d6a-a090-5885fb117a22",
+          "Command": "--preprocess"
+        },
+        {
+          "Id": "c5d781f8-4acf-4016-a6bb-92f01d13c2ba",
+          "Command": "--nodes \"C:\\Users\\Ivan\\source\\repos\\course_project_da\\course_project_da\\assets\\europe.nodes\""
+        },
+        {
+          "Id": "ad81849d-2976-4e7f-bcc3-dad8b7e642fc",
+          "Command": "--edges \"C:\\Users\\Ivan\\source\\repos\\course_project_da\\course_project_da\\assets\\europe.edges\""
+        },
+        {
+          "Id": "4122fa5e-8743-4ccb-ac05-bb14a89850e9",
+          "Command": "--output \"C:\\Users\\Ivan\\source\\repos\\course_project_da\\course_project_da\\assets\\output.graph\""
+        }
+      ]
+    }
+  ]
+}
