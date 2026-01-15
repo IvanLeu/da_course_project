@@ -22,11 +22,7 @@ inline std::istream& operator>>(std::istream& in, InputEntry& entry)
 	return in;
 }
 
-struct ListEntry
-{
-	std::uint32_t id;
-	float w;
-};
+using ListEntry = std::uint32_t;
 
 struct PQEntry
 {
@@ -39,27 +35,41 @@ struct PQEntry
 	}
 };
 
+inline float GetDistance(std::uint32_t uIdx, std::uint32_t vIdx, const std::vector<SavedNode>& nodes)
+{
+	return EuclideanDistance(nodes[uIdx], nodes[vIdx]);
+}
+
 inline void ReconstructBidirectionalPath(
 	std::uint32_t meetNode,
-	const std::vector<std::uint32_t>& parentFwd,
-	const std::vector<std::uint32_t>& parentBwd,
+	const std::unordered_map<std::uint32_t, std::uint32_t>& parentFwd,
+	const std::unordered_map<std::uint32_t, std::uint32_t>& parentBwd,
 	const std::vector<SavedNode>& nodes,
 	std::vector<std::uint64_t>& route)
 {
 	std::vector<std::uint64_t> pathStart;
 	std::uint32_t curr = meetNode;
-	while (curr != static_cast<std::uint32_t>(-1))
+
+	while (true)
 	{
 		pathStart.push_back(nodes[curr].original_id);
-		curr = parentFwd[curr];
+		auto it = parentFwd.find(curr);
+		if (it == parentFwd.end()) break;
+		curr = it->second;
 	}
 	std::ranges::reverse(pathStart);
 
-	curr = parentBwd[meetNode];
-	while (curr != static_cast<std::uint32_t>(-1))
+	auto it = parentBwd.find(meetNode);
+	if (it != parentBwd.end())
 	{
-		pathStart.push_back(nodes[curr].original_id);
-		curr = parentBwd[curr];
+		curr = it->second;
+		while (true)
+		{
+			pathStart.push_back(nodes[curr].original_id);
+			auto parIt = parentBwd.find(curr);
+			if (parIt == parentBwd.end()) break;
+			curr = parIt->second;
+		}
 	}
 
 	route = std::move(pathStart);
@@ -69,9 +79,7 @@ inline float BidirectionalAStar(const InputEntry& entry,
 	const std::vector<SavedNode>& nodes,
 	const std::vector<std::uint32_t>& offsets,
 	const std::vector<ListEntry>& allEdges,
-	std::vector<std::uint64_t>& route,
-	std::vector<float>& gFwd, std::vector<float>& gBwd,
-	std::vector<std::uint32_t>& parentFwd, std::vector<std::uint32_t>& parentBwd)
+	std::vector<std::uint64_t>& route)
 {
 	const std::uint32_t startIdx = ConvertToArrayIndex(entry.src, nodes);
 	const std::uint32_t goalIdx = ConvertToArrayIndex(entry.dest, nodes);
@@ -93,10 +101,12 @@ inline float BidirectionalAStar(const InputEntry& entry,
 	const size_t n = nodes.size();
 	const float INF = std::numeric_limits<float>::infinity();
 
-	std::ranges::fill(gFwd, INF);
-	std::ranges::fill(gBwd, INF);
-	std::ranges::fill(parentFwd, static_cast<std::uint32_t>(-1));
-	std::ranges::fill(parentBwd, static_cast<std::uint32_t>(-1));
+	std::unordered_map<std::uint32_t, float> gFwd;
+	std::unordered_map<std::uint32_t, float> gBwd;
+	std::unordered_map<std::uint32_t, std::uint32_t> parentFwd;
+	std::unordered_map<std::uint32_t, std::uint32_t> parentBwd;
+
+	gFwd.reserve(1000); gBwd.reserve(1000);
 
 	std::priority_queue<PQEntry, std::vector<PQEntry>, std::greater<PQEntry>> pqFwd;
 	std::priority_queue<PQEntry, std::vector<PQEntry>, std::greater<PQEntry>> pqBwd;
@@ -127,20 +137,23 @@ inline float BidirectionalAStar(const InputEntry& entry,
 
 			for (std::uint32_t i = offsets[u]; i < offsets[u + 1]; ++i)
 			{
-				const auto& edge = allEdges[i];
-				std::uint32_t v = edge.id;
-				float w = edge.w;
+				std::uint32_t v = allEdges[i];
+				float w = GetDistance(u, v, nodes);
 				float newG = gFwd[u] + w;
 
-				if (newG < gFwd[v])
+				auto it = gFwd.find(v);
+				float oldG = (it == gFwd.end()) ? INF : it->second;
+
+				if (newG < oldG)
 				{
 					gFwd[v] = newG;
 					parentFwd[v] = u;
 					pqFwd.push({ v, newG + EuclideanDistance(nodes[v], nodes[goalIdx]) });
 
-					if (gBwd[v] != INF)
+					auto itBwd = gBwd.find(v);
+					if (itBwd != gBwd.end())
 					{
-						float dist = newG + gBwd[v];
+						float dist = newG + itBwd->second;
 						if (dist < mu)
 						{
 							mu = dist;
@@ -160,20 +173,23 @@ inline float BidirectionalAStar(const InputEntry& entry,
 
 			for (std::uint32_t i = offsets[u]; i < offsets[u + 1]; ++i)
 			{
-				const auto& edge = allEdges[i];
-				std::uint32_t v = edge.id;
-				float w = edge.w;
+				std::uint32_t v = allEdges[i];
+				float w = GetDistance(u, v, nodes);
 				float newG = gBwd[u] + w;
 
-				if (newG < gBwd[v])
+				auto it = gBwd.find(v);
+				float oldG = (it == gBwd.end()) ? INF : it->second;
+
+				if (newG < oldG)
 				{
 					gBwd[v] = newG;
 					parentBwd[v] = u;
 					pqBwd.push({ v, newG + EuclideanDistance(nodes[v], nodes[startIdx]) });
 
-					if (gFwd[v] != INF)
+					auto itFwd = gFwd.find(v);
+					if (itFwd != gFwd.end())
 					{
-						float dist = newG + gFwd[v];
+						float dist = newG + itFwd->second;
 						if (dist < mu)
 						{
 							mu = dist;
@@ -243,8 +259,8 @@ inline int DoSearch(std::filesystem::path graphPath,
 	{
 		if (dummyEdge.source < nodeCount && dummyEdge.destination < nodeCount)
 		{
-			allEdges[offsets[dummyEdge.source]++] = { dummyEdge.destination, dummyEdge.dist };
-			allEdges[offsets[dummyEdge.destination]++] = { dummyEdge.source, dummyEdge.dist };
+			allEdges[offsets[dummyEdge.source]++] = dummyEdge.destination;
+			allEdges[offsets[dummyEdge.destination]++] = dummyEdge.source;
 		}
 	}
 
@@ -268,11 +284,6 @@ inline int DoSearch(std::filesystem::path graphPath,
 	outputFile << std::fixed;
 
 	{
-		std::vector<float> gFwd(nodeCount);
-		std::vector<float> gBwd(nodeCount);
-		std::vector<std::uint32_t> parentFwd(nodeCount);
-		std::vector<std::uint32_t> parentBwd(nodeCount);
-
 		std::uint64_t nQueries = 0;
 		inputFile >> nQueries;
 		for(std::uint64_t i = 0; i < nQueries; ++i)
@@ -285,8 +296,7 @@ inline int DoSearch(std::filesystem::path graphPath,
 			
 			if (entry.src >= 0 && entry.dest >= 0)
 			{
-				routeLength = BidirectionalAStar(entry, nodes, offsets, allEdges, route,
-					gFwd, gBwd, parentFwd, parentBwd);
+				routeLength = BidirectionalAStar(entry, nodes, offsets, allEdges, route);
 			} 
 
 			if (routeLength < 0.0f)
